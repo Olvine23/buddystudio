@@ -3137,31 +3137,46 @@ var qrcode = function() {
   var downloads=null;
   function say(msg,isErr){ statusEl.textContent=msg||''; statusEl.className='status'+(isErr?' err':''); }
 
+  function downloadCanvasAsPng(filename){
+    var url=cv.toDataURL('image/png');
+    var link=document.createElement('a');
+    link.href=url;
+    link.download=filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    say('Saved '+filename);
+  }
+
   saveBtn.addEventListener('click',function(){
-    if(!downloads){ say('Downloads aren’t available in this view.',true); return; }
     say('');
     cv.toBlob(function(blob){
       if(!blob){ say('Could not render the image.',true); return; }
       var fname='procrastbuddy-'+state.type+'-'+state.format+'.png';
       saveBtn.disabled=true;
-      downloads.save({filename:fname,data:blob}).then(function(){
-        say('Saved '+fname);
-      })['catch'](function(err){
-        var code=err&&err.code;
-        if(code==='declined') say('Save cancelled.');
-        else if(code==='rate_limited') say('One save at a time — try again in a moment.',true);
-        else say('Couldn’t save that file.',true);
-      }).then(function(){ saveBtn.disabled=false; });
+
+      if(downloads){
+        downloads.save({filename:fname,data:blob}).then(function(){
+          say('Saved '+fname);
+        })['catch'](function(err){
+          var code=err&&err.code;
+          if(code==='declined') say('Save cancelled.');
+          else if(code==='rate_limited') say('One save at a time — try again in a moment.',true);
+          else say('Couldn’t save that file.',true);
+        }).then(function(){ saveBtn.disabled=false; });
+        return;
+      }
+
+      downloadCanvasAsPng(fname);
+      saveBtn.disabled=false;
     },'image/png');
   });
 
   if(window.claude&&window.claude.use){
     window.claude.use('downloads').then(function(d){
       downloads=d;
-      if(!d){ saveBtn.disabled=true; say('Downloads aren’t available in this view.'); }
-    })['catch'](function(){ saveBtn.disabled=true; });
-  } else {
-    saveBtn.disabled=true; say('Downloads aren’t available in this view.');
+      if(!d) saveBtn.disabled=false;
+    })['catch'](function(){ saveBtn.disabled=false; });
   }
 
   /* ---------- boot ---------- */
